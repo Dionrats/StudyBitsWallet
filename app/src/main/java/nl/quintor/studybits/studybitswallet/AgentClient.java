@@ -1,16 +1,12 @@
 package nl.quintor.studybits.studybitswallet;
 
-import android.os.Message;
-import android.support.design.widget.Snackbar;
 import android.util.Log;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.commons.io.IOUtils;
 import org.hyperledger.indy.sdk.IndyException;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.CookieHandler;
@@ -19,32 +15,29 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AccessDeniedException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import nl.quintor.studybits.indy.wrapper.IndyWallet;
 import nl.quintor.studybits.indy.wrapper.dto.ConnectionRequest;
 import nl.quintor.studybits.indy.wrapper.dto.ConnectionResponse;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialOffer;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialOfferList;
-import nl.quintor.studybits.indy.wrapper.dto.CredentialWithRequest;
 import nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelope;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
 import nl.quintor.studybits.indy.wrapper.message.MessageType;
-import nl.quintor.studybits.indy.wrapper.message.MessageTypes;
-import nl.quintor.studybits.indy.wrapper.util.JSONUtil;
-import nl.quintor.studybits.studybitswallet.exchangeposition.AuthcryptableExchangePositions;
+import nl.quintor.studybits.studybitswallet.document.Document;
+import nl.quintor.studybits.studybitswallet.messages.AuthcryptableDocuments;
+import nl.quintor.studybits.studybitswallet.messages.AuthcryptableExchangePositions;
 import nl.quintor.studybits.studybitswallet.exchangeposition.ExchangePosition;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 import android.util.Base64;
 
 import static nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes.*;
-import static nl.quintor.studybits.studybitswallet.exchangeposition.StudyBitsMessageTypes.EXCHANGE_POSITIONS;
+import static nl.quintor.studybits.studybitswallet.messages.StudyBitsMessageTypes.DOCUMENT_OFFERS;
+import static nl.quintor.studybits.studybitswallet.messages.StudyBitsMessageTypes.EXCHANGE_POSITIONS;
 
 public class AgentClient {
     public static Map<String, CookieManager> cookieManagers= new HashMap<>();
@@ -83,11 +76,14 @@ public class AgentClient {
 
 
             OutputStream out = urlConnection.getOutputStream();
-            out.write(envelope.toJSON().getBytes(Charset.forName("utf8")));
+            String msg = envelope.toJSON();
+            out.write(msg.getBytes(Charset.forName("utf8")));
             out.close();
 
             if(urlConnection.getResponseCode() == 200) {
-                return MessageEnvelope.parseFromString(IOUtils.toString(urlConnection.getInputStream(), Charset.forName("utf8")), IndyMessageTypes.CONNECTION_RESPONSE);
+
+                String message = IOUtils.toString(urlConnection.getInputStream(), Charset.forName("utf8"));
+                return MessageEnvelope.parseFromString(message, IndyMessageTypes.CONNECTION_RESPONSE);
             } else if(urlConnection.getResponseCode() == 403) {
                 throw new IllegalAccessException("Access denied for student " + username);
             } else {
@@ -107,9 +103,12 @@ public class AgentClient {
 
         CredentialOfferList offersList = codec.decryptMessage(credentialOfferListEnvelope).get();
 
-        List<CredentialOffer> credentialOffers = offersList.getCredentialOffers();
+        return offersList.getCredentialOffers();
+    }
 
-        return credentialOffers;
+    public List<CredentialOffer> getDocumentOffers() throws IndyException, ExecutionException, InterruptedException, IOException {
+        MessageEnvelope<CredentialOfferList> credentialOfferListEnvelope = this.postAndReturnMessage(getRequestEnvelope(DOCUMENT_OFFERS), DOCUMENT_OFFERS);
+        return codec.decryptMessage(credentialOfferListEnvelope).get().getCredentialOffers();
     }
 
     public List<ExchangePosition> getExchangePositions() throws IOException, IndyException, ExecutionException, InterruptedException {

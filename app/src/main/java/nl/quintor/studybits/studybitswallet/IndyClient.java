@@ -1,33 +1,23 @@
 package nl.quintor.studybits.studybitswallet;
 
 import android.arch.lifecycle.LifecycleOwner;
-import android.os.AsyncTask;
-import android.os.Message;
 import android.support.annotation.NonNull;
-import android.util.Base64;
 import android.util.Log;
-
-import com.fasterxml.jackson.databind.node.TextNode;
 
 import org.hyperledger.indy.sdk.IndyException;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import nl.quintor.studybits.indy.wrapper.IndyWallet;
 import nl.quintor.studybits.indy.wrapper.Prover;
-import nl.quintor.studybits.indy.wrapper.dto.AuthcryptableString;
-import nl.quintor.studybits.indy.wrapper.dto.EncryptedMessage;
 import nl.quintor.studybits.indy.wrapper.dto.ConnectionRequest;
 import nl.quintor.studybits.indy.wrapper.dto.ConnectionResponse;
 import nl.quintor.studybits.indy.wrapper.dto.Credential;
-import nl.quintor.studybits.indy.wrapper.dto.CredentialOffer;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialRequest;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialWithRequest;
 import nl.quintor.studybits.indy.wrapper.dto.Proof;
@@ -35,9 +25,9 @@ import nl.quintor.studybits.indy.wrapper.dto.ProofRequest;
 import nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelope;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
-import nl.quintor.studybits.indy.wrapper.util.AsyncUtil;
 import nl.quintor.studybits.studybitswallet.credential.CredentialOrOffer;
-import nl.quintor.studybits.studybitswallet.exchangeposition.AuthcryptableExchangePositions;
+import nl.quintor.studybits.studybitswallet.document.Document;
+import nl.quintor.studybits.studybitswallet.document.DocumentFragment;
 import nl.quintor.studybits.studybitswallet.exchangeposition.ExchangePosition;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
 import nl.quintor.studybits.studybitswallet.room.entity.University;

@@ -52,7 +52,6 @@ public class CredentialRecyclerViewAdapter extends RecyclerView.Adapter<Credenti
         }
 
 
-
         if (holder.credentialOffer.getCredentialOffer() != null) {
             holder.mView.setBackgroundColor(ContextCompat.getColor(holder.mView.getContext(), R.color.colorCredentialOffer));
         }

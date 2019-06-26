@@ -26,29 +26,24 @@ import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.hyperledger.indy.sdk.LibIndy;
 import org.hyperledger.indy.sdk.pool.Pool;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import nl.quintor.studybits.indy.wrapper.IndyPool;
 import nl.quintor.studybits.indy.wrapper.IndyWallet;
 import nl.quintor.studybits.indy.wrapper.Prover;
 import nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes;
-import nl.quintor.studybits.indy.wrapper.message.MessageEnvelope;
-import nl.quintor.studybits.indy.wrapper.util.JSONUtil;
 import nl.quintor.studybits.indy.wrapper.util.PoolUtils;
 import nl.quintor.studybits.studybitswallet.credential.CredentialActivity;
+import nl.quintor.studybits.studybitswallet.document.DocumentActivity;
 import nl.quintor.studybits.studybitswallet.exchangeposition.ExchangePositionActivity;
-import nl.quintor.studybits.studybitswallet.exchangeposition.StudyBitsMessageTypes;
+import nl.quintor.studybits.studybitswallet.messages.StudyBitsMessageTypes;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
 import nl.quintor.studybits.studybitswallet.university.UniversityActivity;
 
@@ -109,6 +104,16 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        ImageButton documentsButton = (ImageButton) findViewById(R.id.button_document);
+
+        documentsButton.setOnClickListener((view) -> {
+            Intent intent = new Intent(this, DocumentActivity.class);
+            startActivity(intent);
+        });
+
+
+
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener((View view) -> {
             try {
@@ -152,7 +157,7 @@ public class MainActivity extends AppCompatActivity {
 
                 IndyPool indyPool = new IndyPool(poolName);
                 IndyWallet tempWallet = IndyWallet.create(indyPool, "student_wallet", TestConfiguration.STUDENT_SEED);
-
+                Log.d("STUDYBITS", "DiD: " + tempWallet.getMainDid());
                 Prover prover = new Prover(tempWallet, TestConfiguration.STUDENT_SECRET_NAME);
                 prover.init();
                 tempWallet.close();
@@ -163,24 +168,25 @@ public class MainActivity extends AppCompatActivity {
                 StudyBitsMessageTypes.init();
 
 
+                URL url = new URL(TestConfiguration.ENDPOINT_GENT + "/bootstrap/reset");
 
-                URL url = new URL(TestConfiguration.ENDPOINT_RUG + "/bootstrap/reset");
                 HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestProperty("Accept", "application/json");
                 urlConnection.setRequestProperty("Content-Type", "application/json");
                 urlConnection.setRequestMethod("POST");
                 urlConnection.setDoOutput(false);
                 urlConnection.setDoInput(true);
-
                 Log.d("STUDYBITS", "Response code: " + urlConnection.getResponseCode());
 
-                url = new URL(TestConfiguration.ENDPOINT_GENT + "/bootstrap/reset");
+                url = new URL(TestConfiguration.ENDPOINT_RUG + "/bootstrap/reset");
+
                 urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestProperty("Accept", "application/json");
                 urlConnection.setRequestProperty("Content-Type", "application/json");
                 urlConnection.setRequestMethod("POST");
                 urlConnection.setDoOutput(false);
                 urlConnection.setDoInput(true);
+
                 Log.d("STUDYBITS", "Response code: " + urlConnection.getResponseCode());
 
                 AtomicInteger countDownLatch = new AtomicInteger(1);

@@ -1,7 +1,6 @@
-package nl.quintor.studybits.studybitswallet.credential;
+package nl.quintor.studybits.studybitswallet.document;
 
 import android.arch.lifecycle.LiveData;
-import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.os.Bundle;
@@ -24,17 +23,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import nl.quintor.studybits.indy.wrapper.IndyPool;
 import nl.quintor.studybits.indy.wrapper.IndyWallet;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialInfo;
-import nl.quintor.studybits.indy.wrapper.dto.CredentialOffer;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
 import nl.quintor.studybits.studybitswallet.IndyClient;
 import nl.quintor.studybits.studybitswallet.R;
 import nl.quintor.studybits.studybitswallet.TestConfiguration;
+import nl.quintor.studybits.studybitswallet.credential.CredentialOrOffer;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 
@@ -44,11 +42,9 @@ import nl.quintor.studybits.studybitswallet.room.entity.University;
  * Activities containing this fragment MUST implement the {@link OnListFragmentInteractionListener}
  * interface.
  */
-public class CredentialFragment extends Fragment {
+public class DocumentFragment extends Fragment {
 
-    // TODO: Customize parameter argument names
     private static final String ARG_COLUMN_COUNT = "column-count";
-    // TODO: Customize parameters
     private int mColumnCount = 1;
     private OnListFragmentInteractionListener mListener;
 
@@ -56,11 +52,20 @@ public class CredentialFragment extends Fragment {
     protected IndyWallet studentWallet;
     protected MessageEnvelopeCodec studentCodec;
 
+    /**
+     * Mandatory empty constructor for the fragment manager to instantiate the
+     * fragment (e.g. upon screen orientation changes).
+     */
+    public DocumentFragment() {
+    }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        initWallet();
+    @SuppressWarnings("unused")
+    public static DocumentFragment newInstance(int columnCount) {
+        DocumentFragment fragment = new DocumentFragment();
+        Bundle args = new Bundle();
+        args.putInt(ARG_COLUMN_COUNT, columnCount);
+        fragment.setArguments(args);
+        return fragment;
     }
 
     private void initWallet() {
@@ -87,26 +92,12 @@ public class CredentialFragment extends Fragment {
             e.printStackTrace();
         }
     }
-    /**
-     * Mandatory empty constructor for the fragment manager to instantiate the
-     * fragment (e.g. upon screen orientation changes).
-     */
-    public CredentialFragment() {
-    }
 
-    @SuppressWarnings("unused")
-    public static CredentialFragment newInstance(int columnCount) {
-        CredentialFragment fragment = new CredentialFragment();
-        Bundle args = new Bundle();
-        args.putInt(ARG_COLUMN_COUNT, columnCount);
-        fragment.setArguments(args);
-        return fragment;
-    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        initWallet();
         if (getArguments() != null) {
             mColumnCount = getArguments().getInt(ARG_COLUMN_COUNT);
         }
@@ -115,7 +106,7 @@ public class CredentialFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_credential_list, container, false);
+        View view = inflater.inflate(R.layout.fragment_document_list, container, false);
 
         // Set the adapter
         if (view instanceof RecyclerView) {
@@ -127,25 +118,16 @@ public class CredentialFragment extends Fragment {
                 recyclerView.setLayoutManager(new GridLayoutManager(context, mColumnCount));
             }
 
-
-
-            final CredentialFragment credentialFragment = this;
-
-            final CredentialOfferViewModel credentialOfferViewModel = ViewModelProviders.of(this)
-                    .get(CredentialOfferViewModel.class);
-
-            initWallet();
-
-            AtomicBoolean hasExecuted = new AtomicBoolean(false);
+            final DocumentViewModel documentViewModel = ViewModelProviders.of(this)
+                    .get(DocumentViewModel.class);
 
 
             LiveData<List<University>> universities = AppDatabase.getInstance(context).universityDao().get();
 
-            LiveData<List<CredentialInfo>> credentials =  credentialOfferViewModel.getCredentials();
+            LiveData<List<CredentialInfo>> documentCredentials = documentViewModel.getDocuments();
+            LiveData<List<CredentialOrOffer>> documentOffers =  documentViewModel.getDocumentOffers();
 
-            LiveData<List<CredentialOrOffer>> credentialOffers = credentialOfferViewModel.getCredentialOffers();
-
-            credentialOfferViewModel.initCredentials(studentWallet);
+            documentViewModel.initDocuments(studentWallet);
 
             Runnable renewAdapter = () -> {
                 List<University> endpoints = universities.getValue();
@@ -153,34 +135,30 @@ public class CredentialFragment extends Fragment {
                     return;
                 }
 
-                List<CredentialOrOffer> credentialOrOffers = new ArrayList<>();
+                List<CredentialOrOffer> documents = new ArrayList<>();
 
-                if (credentials.getValue() != null) {
-                    credentialOrOffers.addAll(getCredentialOrOffersFromCredentials(endpoints, credentials.getValue()));
+                if (documentCredentials.getValue() != null) {
+                    documents.addAll(getCredentialOrOffersFromCredentials(endpoints, documentCredentials.getValue()));
                 }
 
-                if (credentialOffers.getValue() != null) {
-                    credentialOrOffers.addAll(credentialOffers.getValue());
+                if (documentOffers.getValue() != null) {
+                    documents.addAll(documentOffers.getValue());
                 }
 
                 Log.d("STUDYBITS", "Setting credential offers adapter");
-                recyclerView.setAdapter(createAdapter(view, universities.getValue(), credentialOfferViewModel, credentialOrOffers));
+                recyclerView.setAdapter(createAdapter(view, universities.getValue(), documentViewModel, documents));
             };
 
             universities.observe(this, endpoints -> {
-                credentialOfferViewModel.initCredentialOffers(endpoints, studentCodec);
+                documentViewModel.initDocumentOffers(endpoints, studentCodec);
                 renewAdapter.run();
             });
 
-            credentials.observe(this, _var -> renewAdapter.run());
-            credentialOffers.observe(this, _var -> renewAdapter.run());
+            documentCredentials.observe(this, _var -> renewAdapter.run());
+            documentOffers.observe(this, _var -> renewAdapter.run());
 
         }
-
-
-
         return view;
-
     }
 
     private List<CredentialOrOffer> getCredentialOrOffersFromCredentials(List<University> endpoints, List<CredentialInfo> credentials) {
@@ -196,22 +174,24 @@ public class CredentialFragment extends Fragment {
     }
 
     @NonNull
-    private CredentialRecyclerViewAdapter createAdapter(View view, List<University> endpoints, CredentialOfferViewModel credentialOfferViewModel, List<CredentialOrOffer> credentialOrOffers) {
-        return new CredentialRecyclerViewAdapter(credentialOrOffers, credentialOrOffer -> {
-            if (credentialOrOffer.getCredentialOffer() != null) {
+    private RecyclerView.Adapter createAdapter(View view, List<University> endpoints, DocumentViewModel documentViewModel, List<CredentialOrOffer> documents) {
+        return new DocumentRecyclerViewAdapter(documents, document -> {
+            if (document.getCredentialOffer() != null) {
                 initWallet();
                 IndyClient indyClient = new IndyClient(studentWallet, AppDatabase.getInstance(getContext()));
                 CompletableFuture<Void> future = new CompletableFuture<>();
-                indyClient.acceptCredentialOffer(this, credentialOrOffer, future);
+
+                indyClient.acceptCredentialOffer(this, document, future);
                 future.thenAccept(_void -> {
-                    credentialOfferViewModel.initCredentials(studentWallet);
-                    Snackbar.make(view, "Obtained credential!", Snackbar.LENGTH_SHORT).show();
+                    documentViewModel.initDocuments(studentWallet);
+                    Snackbar.make(view, "Obtained Document!", Snackbar.LENGTH_SHORT).show();
                 });
 
-            }
-            mListener.onListFragmentInteraction(credentialOrOffer);
 
-            credentialOfferViewModel.initCredentialOffers(endpoints, studentCodec);
+            }
+            mListener.onListFragmentInteraction(document);
+
+            documentViewModel.initDocumentOffers(endpoints, studentCodec);
         });
     }
 
@@ -244,10 +224,6 @@ public class CredentialFragment extends Fragment {
      * >Communicating with Other Fragments</a> for more information.
      */
     public interface OnListFragmentInteractionListener {
-        void onListFragmentInteraction(CredentialOrOffer credentialOffer);
-    }
-
-    public IndyWallet getStudentWallet() {
-        return studentWallet;
+        void onListFragmentInteraction(CredentialOrOffer document);
     }
 }

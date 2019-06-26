@@ -15,6 +15,15 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
+            android:name=".document.DocumentActivity"
+            android:label="@string/title_activity_documents"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="nl.quintor.studybits.studybitswallet.MainActivity" />
+        </activity>
+        <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
@@ -29,13 +38,15 @@
             android:label="@string/title_activity_university"
             android:parentActivityName=".MainActivity"
             android:theme="@style/AppTheme.NoActionBar">
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="ssi"
-                    android:host="studybits" />
+
+                <data
+                    android:host="studybits"
+                    android:scheme="ssi" />
             </intent-filter>
 
             <meta-data
@@ -60,7 +71,9 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="nl.quintor.studybits.studybitswallet.MainActivity" />
         </activity>
-        <uses-library android:name="android.test.runner"
+
+        <uses-library
+            android:name="android.test.runner"
             android:required="false" />
     </application>
 

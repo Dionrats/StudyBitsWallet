@@ -34,6 +34,7 @@ import nl.quintor.studybits.studybitswallet.room.entity.University;
 import static nl.quintor.studybits.studybitswallet.TestConfiguration.STUDENT_SECRET_NAME;
 
 public class CredentialOfferViewModel extends AndroidViewModel {
+    public static final String TRANSCRIPT_SCHEMA = "Transcript";
     private final MutableLiveData<List<CredentialOrOffer>> credentialOffers = new MutableLiveData<>();
     private final MutableLiveData<List<CredentialInfo>> credentials = new MutableLiveData<>();
 
@@ -45,7 +46,7 @@ public class CredentialOfferViewModel extends AndroidViewModel {
         Prover prover = new Prover(indyWallet, STUDENT_SECRET_NAME);
 
         try {
-            credentials.setValue(prover.findAllCredentials().get());
+            credentials.setValue(prover.findAllCredentials().get().stream().filter(cred -> cred.getSchemaId().contains(TRANSCRIPT_SCHEMA)).collect(Collectors.toList()));
         } catch (InterruptedException | ExecutionException | IndyException e) {
             Log.e("STUDYBITS", "Error while refreshing credentials");
             e.printStackTrace();

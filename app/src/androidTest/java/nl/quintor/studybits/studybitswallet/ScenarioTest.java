@@ -105,54 +105,54 @@ public class ScenarioTest {
 
         // Navigate to credentials via pressing back on toolbar
         onView(withContentDescription(R.string.abc_action_bar_up_description)).perform(click());
-        onView(withId(R.id.button_credential))
-                .perform(click());
-
-        // Check presence of credential
-        onView(withText("Rijksuniversiteit Groningen"))
-                .check(matches(isDisplayed()));
-
-        // Accept credential
-        onView(withText("Rijksuniversiteit Groningen"))
-                .perform(click());
-
-        // Launch connection dialog
-        intent = new Intent();
-
-        intent.setAction(Intent.ACTION_VIEW);
-        intent.setData(TestConfiguration.CONNECTION_URI_GENT);
-
-        universityActivityRule.launchActivity(intent);
-
-        // Enter text
-        onView(withId(R.id.student_id_text))
-                .check(matches(isDisplayed()));
-
-        // Click connect
-        onView(withText(R.string.connect))
-                .perform(click());
-
-        // Check connection to university
-        onView(withText("Universiteit Gent"))
-                .check(matches(isDisplayed()));
-
-
-        // Navigate to exchange positions via pressing back on toolbar
-        onView(withContentDescription(R.string.abc_action_bar_up_description)).perform(click());
-        onView(withId(R.id.button_exchange_position))
-                .perform(click());
-
-        // Accept exchange position
-        onView(withText("MSc Marketing"))
-                .check(matches(isDisplayed()))
-                .perform(click());
-
-        onView(withText("Send"))
-                .check(matches(isDisplayed()))
-                .perform(click());
-
-        // Check result
-        onView(allOf(withId(android.support.design.R.id.snackbar_text), withText("You're going abroad!")))
-                .check(matches(isDisplayed()));
+//        onView(withId(R.id.button_credential))
+//                .perform(click());
+//
+//        // Check presence of credential
+//        onView(withText("Rijksuniversiteit Groningen"))
+//                .check(matches(isDisplayed()));
+//
+//        // Accept credential
+//        onView(withText("Rijksuniversiteit Groningen"))
+//                .perform(click());
+//
+//        // Launch connection dialog
+//        intent = new Intent();
+//
+//        intent.setAction(Intent.ACTION_VIEW);
+//        intent.setData(TestConfiguration.CONNECTION_URI_GENT);
+//
+//        universityActivityRule.launchActivity(intent);
+//
+//        // Enter text
+//        onView(withId(R.id.student_id_text))
+//                .check(matches(isDisplayed()));
+//
+//        // Click connect
+//        onView(withText(R.string.connect))
+//                .perform(click());
+//
+//        // Check connection to university
+//        onView(withText("Universiteit Gent"))
+//                .check(matches(isDisplayed()));
+//
+//
+//        // Navigate to exchange positions via pressing back on toolbar
+//        onView(withContentDescription(R.string.abc_action_bar_up_description)).perform(click());
+//        onView(withId(R.id.button_exchange_position))
+//                .perform(click());
+//
+//        // Accept exchange position
+//        onView(withText("MSc Marketing"))
+//                .check(matches(isDisplayed()))
+//                .perform(click());
+//
+//        onView(withText("Send"))
+//                .check(matches(isDisplayed()))
+//                .perform(click());
+//
+//        // Check result
+//        onView(allOf(withId(android.support.design.R.id.snackbar_text), withText("You're going abroad!")))
+//                .check(matches(isDisplayed()));
     }
 }

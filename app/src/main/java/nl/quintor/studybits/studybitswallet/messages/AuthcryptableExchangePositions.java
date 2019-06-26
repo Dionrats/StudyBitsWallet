@@ -1,8 +1,9 @@
-package nl.quintor.studybits.studybitswallet.exchangeposition;
+package nl.quintor.studybits.studybitswallet.messages;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import nl.quintor.studybits.indy.wrapper.dto.ProofRequest;
 import nl.quintor.studybits.indy.wrapper.dto.Serializable;
+import nl.quintor.studybits.studybitswallet.exchangeposition.ExchangePosition;
 
 import java.util.List;
 
