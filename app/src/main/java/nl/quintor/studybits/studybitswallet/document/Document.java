@@ -40,6 +40,8 @@ public class Document {
             this.size = values.get("size");
             this.hash = values.get("hash");
 
+            this.issuer = credentialOrOffer.getUniversity();
+
             this.fulfilled = true;
         } else {
             this.issuer = credentialOrOffer.getUniversity();

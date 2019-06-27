@@ -12,4 +12,5 @@
     <string name="title_activity_exchange_position">ExchangePositionActivity</string>
     <string name="title_activity_documents">Documents</string>
     <string name="download_file">Download this file from StudyBits</string>
+    <string name="open_file_action">Open</string>
 </resources>

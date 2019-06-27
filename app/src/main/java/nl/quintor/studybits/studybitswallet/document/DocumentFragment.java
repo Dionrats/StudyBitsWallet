@@ -158,6 +158,7 @@ public class DocumentFragment extends Fragment {
             documentOffers.observe(this, _var -> renewAdapter.run());
 
         }
+
         return view;
     }
 
@@ -175,7 +176,7 @@ public class DocumentFragment extends Fragment {
 
     @NonNull
     private RecyclerView.Adapter createAdapter(View view, List<University> endpoints, DocumentViewModel documentViewModel, List<CredentialOrOffer> documents) {
-        return new DocumentRecyclerViewAdapter(documents, document -> {
+        return new DocumentRecyclerViewAdapter(documents, studentWallet, document -> {
             if (document.getCredentialOffer() != null) {
                 initWallet();
                 IndyClient indyClient = new IndyClient(studentWallet, AppDatabase.getInstance(getContext()));
@@ -186,8 +187,6 @@ public class DocumentFragment extends Fragment {
                     documentViewModel.initDocuments(studentWallet);
                     Snackbar.make(view, "Obtained Document!", Snackbar.LENGTH_SHORT).show();
                 });
-
-
             }
             mListener.onListFragmentInteraction(document);
 

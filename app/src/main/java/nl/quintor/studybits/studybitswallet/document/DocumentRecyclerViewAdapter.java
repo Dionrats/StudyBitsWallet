@@ -1,18 +1,33 @@
 package nl.quintor.studybits.studybitswallet.document;
 
+import android.content.Intent;
+import android.net.Uri;
+import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
+import org.hyperledger.indy.sdk.IndyException;
+
+import nl.quintor.studybits.indy.wrapper.IndyPool;
+import nl.quintor.studybits.indy.wrapper.IndyWallet;
+import nl.quintor.studybits.studybitswallet.IPFSClient;
 import nl.quintor.studybits.studybitswallet.R;
+import nl.quintor.studybits.studybitswallet.TestConfiguration;
 import nl.quintor.studybits.studybitswallet.credential.CredentialOrOffer;
 import nl.quintor.studybits.studybitswallet.document.DocumentFragment.OnListFragmentInteractionListener;
 
+import java.io.File;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * {@link RecyclerView.Adapter} that can display a {@link Document} and makes a call to the
@@ -21,10 +36,12 @@ import java.util.List;
 public class DocumentRecyclerViewAdapter extends RecyclerView.Adapter<DocumentRecyclerViewAdapter.ViewHolder> {
 
     private final List<CredentialOrOffer> mDocuments;
+    private final IndyWallet mWallet;
     private final OnListFragmentInteractionListener mListener;
 
-    public DocumentRecyclerViewAdapter(List<CredentialOrOffer> documents, OnListFragmentInteractionListener listener) {
+    public DocumentRecyclerViewAdapter(List<CredentialOrOffer> documents, IndyWallet indyWallet, OnListFragmentInteractionListener listener) {
         mDocuments = documents;
+        mWallet = indyWallet;
         mListener = listener;
     }
 
@@ -43,6 +60,33 @@ public class DocumentRecyclerViewAdapter extends RecyclerView.Adapter<DocumentRe
             holder.mTypeView.setText(holder.mDocument.getType());
             holder.mNameView.setText(holder.mDocument.getName());
             holder.mSizeView.setText(holder.mDocument.getSize());
+
+            holder.mDownloadButton.setOnClickListener(v -> {
+                Snackbar.make(v, "downloading " + holder.mDocument.getName(), Snackbar.LENGTH_SHORT).show();
+
+                //TODO replace button with spinner
+
+                try{
+                    IPFSClient ipfsClient = new IPFSClient(mWallet);
+
+                    File file = ipfsClient.retrieveFile(holder.mDocument.getName(), holder.mDocument.getHash(), holder.mDocument.getIssuer().getTheirDid());
+
+                    Snackbar snackbar = Snackbar.make(v, holder.mDocument.getName() + " is gedownload", Snackbar.LENGTH_LONG);
+                    snackbar.setAction(R.string.open_file_action, _void -> {
+                        Intent intent = new Intent(Intent.ACTION_VIEW);
+                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        intent.setData(FileProvider.getUriForFile(holder.mView.getContext(), "nl.quintor.studybits.fileProvider", file));
+                        intent = Intent.createChooser(intent, "Choose an application to open with:");
+                        v.getContext().startActivity(intent);
+                    });
+                    snackbar.show();
+                } catch (Exception e) {
+                    Log.e("StudyBits", e.getMessage());
+                }
+
+
+            });
+
         }else {
             holder.mSizeView.setVisibility(View.GONE);
 

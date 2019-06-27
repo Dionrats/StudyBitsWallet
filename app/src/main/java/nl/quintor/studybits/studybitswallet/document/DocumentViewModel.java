@@ -80,7 +80,6 @@ public class DocumentViewModel extends AndroidViewModel {
                 .collect(Collectors.toList());
     }
 
-
     public LiveData<List<CredentialOrOffer>> getDocumentOffers() {
         return documentOffers;
     }
