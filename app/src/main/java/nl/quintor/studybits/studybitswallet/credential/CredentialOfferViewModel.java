@@ -5,36 +5,25 @@ import android.arch.lifecycle.AndroidViewModel;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.support.annotation.NonNull;
-import android.util.Base64;
 import android.util.Log;
-
 import org.hyperledger.indy.sdk.IndyException;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
-import nl.quintor.studybits.indy.wrapper.IndyWallet;
-import nl.quintor.studybits.indy.wrapper.Prover;
-
 import nl.quintor.studybits.indy.wrapper.dto.CredentialInfo;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialOffer;
-import nl.quintor.studybits.indy.wrapper.message.MessageEnvelope;
-import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
-import nl.quintor.studybits.indy.wrapper.util.AsyncUtil;
 import nl.quintor.studybits.studybitswallet.AgentClient;
 import nl.quintor.studybits.studybitswallet.IndyClient;
-import nl.quintor.studybits.studybitswallet.MainActivity;
-import nl.quintor.studybits.studybitswallet.WalletActivity;
+import nl.quintor.studybits.studybitswallet.IndyConnection;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 
-import static nl.quintor.studybits.studybitswallet.TestConfiguration.STUDENT_SECRET_NAME;
 
 public class CredentialOfferViewModel extends AndroidViewModel {
-    public static final String TRANSCRIPT_SCHEMA = "Transcript";
+    private static final String TRANSCRIPT_SCHEMA = "Transcript";
+
     private final MutableLiveData<List<CredentialOrOffer>> credentialOffers = new MutableLiveData<>();
     private final MutableLiveData<List<CredentialInfo>> credentials = new MutableLiveData<>();
 
@@ -42,18 +31,18 @@ public class CredentialOfferViewModel extends AndroidViewModel {
         super(application);
     }
 
-    public void initCredentials(IndyWallet indyWallet) {
-        Prover prover = new Prover(indyWallet, STUDENT_SECRET_NAME);
+    public void initCredentials() {
+        IndyClient indyClient = new IndyClient(IndyConnection.getInstance(), AppDatabase.getInstance(getApplication().getApplicationContext()));
 
         try {
-            credentials.setValue(prover.findAllCredentials().get().stream().filter(cred -> cred.getSchemaId().contains(TRANSCRIPT_SCHEMA)).collect(Collectors.toList()));
+            credentials.setValue(indyClient.findCredentials(credentialInfo -> credentialInfo.getSchemaId().contains(TRANSCRIPT_SCHEMA)));
         } catch (InterruptedException | ExecutionException | IndyException e) {
             Log.e("STUDYBITS", "Error while refreshing credentials");
             e.printStackTrace();
         }
     }
 
-    public void initCredentialOffers(List<University> universities, MessageEnvelopeCodec codec) {
+    public void initCredentialOffers(List<University> universities) {
         if (universities == null) {
             return;
         }
@@ -62,11 +51,10 @@ public class CredentialOfferViewModel extends AndroidViewModel {
             List<CredentialOrOffer> credentialOrOffers = new ArrayList<>();
             for (University university : universities) {
                 Log.d("STUDYBITS", "Initializing credential offers for university " + university);
-                List<CredentialOrOffer> credentialOrOffersForUni = getCredentialOrOffers(codec, university);
+                List<CredentialOrOffer> credentialOrOffersForUni = getCredentialOrOffers(university);
 
                 credentialOrOffers.addAll(credentialOrOffersForUni);
             }
-
 
             credentialOffers.setValue(credentialOrOffers);
         }
@@ -77,9 +65,9 @@ public class CredentialOfferViewModel extends AndroidViewModel {
         }
     }
 
-    private List<CredentialOrOffer> getCredentialOrOffers(MessageEnvelopeCodec codec, University university) throws IOException, InterruptedException, ExecutionException, IndyException {
+    private List<CredentialOrOffer> getCredentialOrOffers(University university) throws IOException, InterruptedException, ExecutionException, IndyException {
 
-        List<CredentialOffer> offersForUni = new AgentClient(university, codec).getCredentialOffers();
+        List<CredentialOffer> offersForUni = new AgentClient(university, IndyConnection.getInstance()).getCredentialOffers();
 
         Log.d("STUDYBITS", "Got " + offersForUni.size() + " message envelopes with offers");
 
@@ -87,7 +75,6 @@ public class CredentialOfferViewModel extends AndroidViewModel {
                 .map(credentialOffer -> CredentialOrOffer.fromCredentialOffer(university, credentialOffer))
                 .collect(Collectors.toList());
     }
-
 
     public LiveData<List<CredentialOrOffer>> getCredentialOffers() {
         return credentialOffers;

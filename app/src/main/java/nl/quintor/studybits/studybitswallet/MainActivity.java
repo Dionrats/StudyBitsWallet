@@ -51,7 +51,7 @@ import nl.quintor.studybits.studybitswallet.university.UniversityActivity;
 public class MainActivity extends AppCompatActivity {
 
     static {
-        Log.d("STUDYBITS", "ENDPOINT IP: " + TestConfiguration.ENDPOINT_IP);
+        Log.d("STUDYBITS", "ENDPOINT IP: " +  new TestConfiguration().getEndpointIP());
         Log.d("STUDYBITS", "Attempting to load indy");
         System.loadLibrary("indy");
         Log.d("STUDYBITS", "Loaded indy");
@@ -64,6 +64,8 @@ public class MainActivity extends AppCompatActivity {
 
         StrictMode.setThreadPolicy(policy);
 
+        Log.d("STUDYBITS", "Creating indyConnection.");
+        IndyConnection.setConfiguration(new TestConfiguration());
     }
 
     private static final int REQUEST_EXTERNAL_STORAGE = 112;
@@ -79,9 +81,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        final MainActivity activity = this;
-
-
 
         ImageButton universityButton = (ImageButton) findViewById(R.id.button_university);
 
@@ -112,97 +111,99 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-
+        try {
+            Pool.setProtocolVersion(PoolUtils.PROTOCOL_VERSION).get();
+        } catch (Exception e) {
+            Log.e("STUDYBITS", "Exception during create" + e.getMessage());
+            e.printStackTrace();
+        }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener((View view) -> {
-            try {
-                int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        fab.setOnClickListener(this::resetWallet);
 
-                if (permission != PackageManager.PERMISSION_GRANTED) {
-                    // We don't have permission so prompt the user
-                    ActivityCompat.requestPermissions(
-                            activity,
-                            PERMISSIONS_STORAGE,
-                            REQUEST_EXTERNAL_STORAGE
-                    );
-                }
+    }
 
-                File indyClientDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/.indy_client/");
-                boolean indyFolderExists = true;
-                if (!indyClientDir.exists()) {
-                    indyFolderExists = indyClientDir.mkdir();
-                }
-                if (indyFolderExists) {
-                    Log.d("STUDYBITS", indyClientDir.toString());
-                    for (File file : FileUtils.listFilesAndDirs(indyClientDir, TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE)) {
-                        Log.d("STUDYBITS", "File " + file);
-                    }
-                    try {
-                        FileUtils.deleteDirectory(indyClientDir);
-                    } catch (IOException e) {
-                        throw new IOException(e);
-                    }
-                }
-                for (String abi : Build.SUPPORTED_ABIS) {
-                    Log.d("STUDYBITS", "Supported ABI: " + abi);
-                }
+    private void resetWallet(View view) {
+        try {
+            int permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
-                Log.d("STUDYBITS", "Loading other indy");
-                LibIndy.API api = (LibIndy.API) Native.loadLibrary("indy", LibIndy.API.class);
-                Log.d("STUDYBITS", "Indy api object: " + api);
-                Pool.setProtocolVersion(PoolUtils.PROTOCOL_VERSION).get();
-
-                String poolName = PoolUtils.createPoolLedgerConfig(TestConfiguration.ENDPOINT_IP, "testPool");
-
-                IndyPool indyPool = new IndyPool(poolName);
-                IndyWallet tempWallet = IndyWallet.create(indyPool, "student_wallet", TestConfiguration.STUDENT_SEED);
-                Log.d("STUDYBITS", "DiD: " + tempWallet.getMainDid());
-                Prover prover = new Prover(tempWallet, TestConfiguration.STUDENT_SECRET_NAME);
-                prover.init();
-                tempWallet.close();
-                Log.d("STUDYBITS", "Closing tempWallet");
-                indyPool.close();
-
-                IndyMessageTypes.init();
-                StudyBitsMessageTypes.init();
-
-
-                URL url = new URL(TestConfiguration.ENDPOINT_GENT + "/bootstrap/reset");
-
-                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestProperty("Accept", "application/json");
-                urlConnection.setRequestProperty("Content-Type", "application/json");
-                urlConnection.setRequestMethod("POST");
-                urlConnection.setDoOutput(false);
-                urlConnection.setDoInput(true);
-                Log.d("STUDYBITS", "Response code: " + urlConnection.getResponseCode());
-
-                url = new URL(TestConfiguration.ENDPOINT_RUG + "/bootstrap/reset");
-
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestProperty("Accept", "application/json");
-                urlConnection.setRequestProperty("Content-Type", "application/json");
-                urlConnection.setRequestMethod("POST");
-                urlConnection.setDoOutput(false);
-                urlConnection.setDoInput(true);
-
-                Log.d("STUDYBITS", "Response code: " + urlConnection.getResponseCode());
-
-                AtomicInteger countDownLatch = new AtomicInteger(1);
-
-                AppDatabase.AsyncDatabaseTask databaseClean = new AppDatabase.AsyncDatabaseTask(
-                        () -> AppDatabase.getInstance(this).universityDao().delete(),
-                        countDownLatch,
-                        () -> Snackbar.make(view, "Successfully reset", Snackbar.LENGTH_SHORT).show());
-                databaseClean.execute();
-
-
-            } catch (Exception e) {
-                Log.e("STUDYBITS", "Exception during reset" + e.getMessage());
-                e.printStackTrace();
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                // We don't have permission so prompt the user
+                ActivityCompat.requestPermissions(
+                        this,
+                        PERMISSIONS_STORAGE,
+                        REQUEST_EXTERNAL_STORAGE
+                );
             }
-        });
+
+            File indyClientDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/.indy_client/");
+            boolean indyFolderExists = true;
+            if (!indyClientDir.exists()) {
+                indyFolderExists = indyClientDir.mkdir();
+            }
+            if (indyFolderExists) {
+                Log.d("STUDYBITS", indyClientDir.toString());
+                for (File file : FileUtils.listFilesAndDirs(indyClientDir, TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE)) {
+                    Log.d("STUDYBITS", "File " + file);
+                }
+                try {
+                    FileUtils.deleteDirectory(indyClientDir);
+                } catch (IOException e) {
+                    throw new IOException(e);
+                }
+            }
+            for (String abi : Build.SUPPORTED_ABIS) {
+                Log.d("STUDYBITS", "Supported ABI: " + abi);
+            }
+
+            Log.d("STUDYBITS", "Loading other indy");
+            LibIndy.API api = (LibIndy.API) Native.loadLibrary("indy", LibIndy.API.class);
+            Log.d("STUDYBITS", "Indy api object: " + api);
+
+            String poolName = PoolUtils.createPoolLedgerConfig(new TestConfiguration().getEndpointIP(), new TestConfiguration().getPoolName());
+
+            IndyPool indyPool = new IndyPool(poolName);
+            IndyWallet tempWallet = IndyWallet.create(indyPool, new TestConfiguration().getWalletName(), new TestConfiguration().getStudentSeed());
+            Log.d("STUDYBITS", "DiD: " + tempWallet.getMainDid());
+            Prover prover = new Prover(tempWallet, new TestConfiguration().getStudentSecretName());
+            prover.init();
+            tempWallet.close();
+            Log.d("STUDYBITS", "Closing tempWallet");
+            indyPool.close();
+
+            URL url = new URL(new TestConfiguration().getGentEndpoint() + "/bootstrap/reset");
+
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setRequestProperty("Accept", "application/json");
+            urlConnection.setRequestProperty("Content-Type", "application/json");
+            urlConnection.setRequestMethod("POST");
+            urlConnection.setDoOutput(false);
+            urlConnection.setDoInput(true);
+            Log.d("STUDYBITS", "Response code: " + urlConnection.getResponseCode());
+
+            url = new URL(new TestConfiguration().getRuGEndpoint() + "/bootstrap/reset");
+
+            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setRequestProperty("Accept", "application/json");
+            urlConnection.setRequestProperty("Content-Type", "application/json");
+            urlConnection.setRequestMethod("POST");
+            urlConnection.setDoOutput(false);
+            urlConnection.setDoInput(true);
+
+            Log.d("STUDYBITS", "Response code: " + urlConnection.getResponseCode());
+
+            AtomicInteger countDownLatch = new AtomicInteger(1);
+
+            AppDatabase.AsyncDatabaseTask databaseClean = new AppDatabase.AsyncDatabaseTask(
+                    () -> AppDatabase.getInstance(this).universityDao().delete(),
+                    countDownLatch,
+                    () -> Snackbar.make(view, "Successfully reset", Snackbar.LENGTH_SHORT).show());
+            databaseClean.execute();
+
+        } catch (Exception e) {
+            Log.e("STUDYBITS", "Exception during reset" + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @Override

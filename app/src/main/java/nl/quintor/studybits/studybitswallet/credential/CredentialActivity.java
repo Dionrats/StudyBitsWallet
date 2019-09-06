@@ -21,12 +21,6 @@ public class CredentialActivity extends AppCompatActivity  implements Credential
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-;
-    }
-
-    @Override
     public void onListFragmentInteraction(CredentialOrOffer credentialOrOffer) {
     }
 }

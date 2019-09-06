@@ -15,6 +15,7 @@ import ch.qos.logback.core.net.SocketConnector;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
 import nl.quintor.studybits.indy.wrapper.util.AsyncUtil;
 import nl.quintor.studybits.studybitswallet.AgentClient;
+import nl.quintor.studybits.studybitswallet.IndyConnection;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 
 public class ExchangePositionViewModel extends AndroidViewModel {
@@ -27,7 +28,7 @@ public class ExchangePositionViewModel extends AndroidViewModel {
     public void init(List<University> universities, MessageEnvelopeCodec codec) {
         List<ExchangePosition> newExchangePositions =  universities
                 .stream()
-                .map(AsyncUtil.wrapException(university -> new AgentClient(university, codec).getExchangePositions()))
+                .map(AsyncUtil.wrapException(university -> new AgentClient(university, IndyConnection.getInstance()).getExchangePositions()))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
 

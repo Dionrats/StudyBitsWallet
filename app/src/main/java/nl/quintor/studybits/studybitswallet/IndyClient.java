@@ -1,55 +1,72 @@
 package nl.quintor.studybits.studybitswallet;
 
+import android.annotation.SuppressLint;
 import android.arch.lifecycle.LifecycleOwner;
+import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
-import org.hyperledger.indy.sdk.IndyException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
+import org.hyperledger.indy.sdk.IndyException;
+import org.hyperledger.indy.sdk.crypto.Crypto;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
-import nl.quintor.studybits.indy.wrapper.IndyWallet;
+import io.ipfs.multihash.Multihash;
 import nl.quintor.studybits.indy.wrapper.Prover;
+import nl.quintor.studybits.indy.wrapper.dto.AttributeInfo;
 import nl.quintor.studybits.indy.wrapper.dto.ConnectionRequest;
 import nl.quintor.studybits.indy.wrapper.dto.ConnectionResponse;
 import nl.quintor.studybits.indy.wrapper.dto.Credential;
+import nl.quintor.studybits.indy.wrapper.dto.CredentialInfo;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialRequest;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialWithRequest;
+import nl.quintor.studybits.indy.wrapper.dto.Filter;
 import nl.quintor.studybits.indy.wrapper.dto.Proof;
 import nl.quintor.studybits.indy.wrapper.dto.ProofRequest;
 import nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelope;
-import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
 import nl.quintor.studybits.studybitswallet.credential.CredentialOrOffer;
 import nl.quintor.studybits.studybitswallet.document.Document;
-import nl.quintor.studybits.studybitswallet.document.DocumentFragment;
 import nl.quintor.studybits.studybitswallet.exchangeposition.ExchangePosition;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 
 public class IndyClient {
-    private final IndyWallet studentWallet;
-    private final MessageEnvelopeCodec studentCodec;
+
+
+    private final IndyConnection connection;
     private final AppDatabase appDatabase;
 
-    public IndyClient(IndyWallet indyWallet, AppDatabase appDatabase) {
-        this.studentWallet = indyWallet;
-        this.studentCodec = new MessageEnvelopeCodec(indyWallet);
+    public IndyClient(IndyConnection connection, AppDatabase appDatabase) {
+        this.connection = connection;
         this.appDatabase = appDatabase;
     }
 
     public void acceptCredentialOffer(LifecycleOwner lifecycleOwner, CredentialOrOffer credentialOrOffer, CompletableFuture<Void> returnValue) {
         try {
             Log.d("STUDYBITS", "Accepting credential offer");
-            Prover studentProver = new Prover(studentWallet, TestConfiguration.STUDENT_SECRET_NAME);
+            Prover studentProver = new Prover(connection.getWallet(), connection.getConfiguration().getStudentSecretName());
 
             CredentialRequest credentialRequest = studentProver.createCredentialRequest(credentialOrOffer.getTheirDid(), credentialOrOffer.getCredentialOffer()).get();
-            MessageEnvelope credentialRequestEnvelope = studentCodec.encryptMessage(credentialRequest, IndyMessageTypes.CREDENTIAL_REQUEST, credentialOrOffer.getTheirDid()).get();
+            MessageEnvelope credentialRequestEnvelope = connection.getCodec().encryptMessage(credentialRequest, IndyMessageTypes.CREDENTIAL_REQUEST, credentialOrOffer.getTheirDid()).get();
 
             University university = credentialOrOffer.getUniversity();
 
@@ -57,9 +74,9 @@ public class IndyClient {
                 return;
             }
             try {
-                MessageEnvelope<CredentialWithRequest> credentialEnvelope = new AgentClient(university, studentCodec).postAndReturnMessage(credentialRequestEnvelope, IndyMessageTypes.CREDENTIAL);
+                MessageEnvelope<CredentialWithRequest> credentialEnvelope = new AgentClient(university, connection).postAndReturnMessage(credentialRequestEnvelope, IndyMessageTypes.CREDENTIAL);
 
-                CredentialWithRequest credentialWithRequest = studentCodec.decryptMessage(credentialEnvelope).get();
+                CredentialWithRequest credentialWithRequest = connection.getCodec().decryptMessage(credentialEnvelope).get();
 
                 studentProver.storeCredential(credentialWithRequest).get();
 
@@ -90,25 +107,78 @@ public class IndyClient {
     public MessageEnvelope fulfillExchangePosition(ExchangePosition exchangePosition) throws IndyException, IOException, ExecutionException, InterruptedException {
         ProofRequest proofRequest = exchangePosition.getProofRequest();
 
-        Prover prover = new Prover(studentWallet, TestConfiguration.STUDENT_SECRET_NAME);
+        Prover prover = new Prover(connection.getWallet(), connection.getConfiguration().getStudentSecretName());
         Map<String, String> values = new HashMap<>();
 
         Proof proof = prover.fulfillProofRequest(proofRequest, values).get();
 
-        return studentCodec.encryptMessage(proof, IndyMessageTypes.PROOF, exchangePosition.getTheirDid()).get();
+        return connection.getCodec().encryptMessage(proof, IndyMessageTypes.PROOF, exchangePosition.getTheirDid()).get();
+    }
+
+    private ProofRequest composeDocumentProofRequest(Document document) {
+        List<Filter> documentFilter = Collections.singletonList(new Filter(document.getIssuer().getCredDefId()));
+        return ProofRequest.builder()
+                .name("Document")
+                .nonce("45780293854785932345")
+                .version("1.0")
+                .requestedAttribute("attr1_referent", new AttributeInfo("hash", Optional.of(documentFilter)))
+               // .requestedPredicate("predicate1_referent", new PredicateInfo("hash", "=", 0, Optional.of(documentFilter)))
+                .build();
+    }
+
+    public JSONObject composeDocumentVerification(Document document, File file) throws ExecutionException, InterruptedException {
+        @SuppressLint("StaticFieldLeak") AsyncTask<Document, Integer, JSONObject> task = new AsyncTask<Document, Integer, JSONObject>() {
+            @Override
+            protected JSONObject doInBackground(Document... documents) {
+            JSONObject jsonObject = new JSONObject();
+            try {
+                ProofRequest proofRequest = composeDocumentProofRequest(documents[0]);
+                Proof proof = proofDocument(proofRequest);
+
+                jsonObject.put("p", proof.toJSON());
+                jsonObject.put("r", proofRequest.toJSON());
+                jsonObject.put("h", new Multihash(Multihash.Type.sha2_256, DigestUtils.sha256(IOUtils.toByteArray(file.toURI()))));
+                jsonObject.put("k", connection.getWallet().getMainKey());
+
+                byte[] signature = signMessage(jsonObject.toString().getBytes());
+
+                jsonObject.put("s", new JSONArray(signature));
+            } catch (IndyException | ExecutionException | JSONException | IOException e) {
+                Log.e("StudyBits", e.getMessage());
+            } catch (InterruptedException e) {
+                Log.e("StudyBits", e.getMessage());
+                Thread.currentThread().interrupt();
+            }
+
+                return jsonObject;
+            }
+        };
+
+        return task.execute(document).get();
+    }
+
+    private Proof proofDocument(ProofRequest proofRequest) throws JsonProcessingException, IndyException, ExecutionException, InterruptedException {
+        Prover prover = new Prover(connection.getWallet(), connection.getConfiguration().getStudentSecretName());
+        Map<String, String> values = new HashMap<>();
+
+        return prover.fulfillProofRequest(proofRequest, values).get();
+    }
+
+    public byte[] signMessage(byte[] message) throws IndyException, ExecutionException, InterruptedException {
+        return Crypto.cryptoSign(connection.getWallet().getWallet(), connection.getWallet().getMainKey(), message).get();
     }
 
     @NonNull
     public University connect(String endpoint, String uniName, String username, String password, String uniVerinymDid) throws Exception {
-        ConnectionRequest connectionRequest = studentWallet.createConnectionRequest().get();
+        ConnectionRequest connectionRequest = connection.getWallet().createConnectionRequest().get();
 
-        MessageEnvelope<ConnectionRequest> connectionResponseEnvelope = studentCodec.encryptMessage(connectionRequest, IndyMessageTypes.CONNECTION_REQUEST, uniVerinymDid).get();
+        MessageEnvelope<ConnectionRequest> connectionResponseEnvelope = connection.getCodec().encryptMessage(connectionRequest, IndyMessageTypes.CONNECTION_REQUEST, uniVerinymDid).get();
 
         MessageEnvelope<ConnectionResponse> connectionResponseMessageEnvelope = AgentClient.login(endpoint, username, password, connectionResponseEnvelope);
 
-        ConnectionResponse connectionResponse = studentCodec.decryptMessage(connectionResponseMessageEnvelope).get();
+        ConnectionResponse connectionResponse = connection.getCodec().decryptMessage(connectionResponseMessageEnvelope).get();
 
-        studentWallet.acceptConnectionResponse(connectionResponse, connectionRequest.getDid());
+        connection.getWallet().acceptConnectionResponse(connectionResponse, connectionRequest.getDid());
 
         University university = new University(uniName, endpoint, connectionResponse.getDid());
 
@@ -116,4 +186,12 @@ public class IndyClient {
         new AppDatabase.AsyncDatabaseTask(() -> appDatabase.universityDao().insertUniversities(university), null, null).execute();
         return university;
     }
+
+    public List<CredentialInfo> findCredentials(Predicate<? super CredentialInfo> filter) throws IndyException, ExecutionException, InterruptedException {
+        Prover prover = new Prover(connection.getWallet(), connection.getConfiguration().getStudentSecretName());
+
+        return prover.findAllCredentials().get().stream().filter(filter).collect(Collectors.toList());
+
+    }
+
 }

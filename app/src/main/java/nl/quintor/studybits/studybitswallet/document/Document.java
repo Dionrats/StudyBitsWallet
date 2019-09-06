@@ -1,12 +1,15 @@
 package nl.quintor.studybits.studybitswallet.document;
 
+import android.icu.text.DecimalFormat;
+
+import java.io.Serializable;
 import java.util.Map;
 
 import nl.quintor.studybits.indy.wrapper.dto.CredentialOffer;
 import nl.quintor.studybits.studybitswallet.credential.CredentialOrOffer;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 
-public class Document {
+public class Document implements Serializable {
     private String name;
     private String type;
     private String size;
@@ -48,6 +51,14 @@ public class Document {
             this.offer = credentialOrOffer.getCredentialOffer();
             this.fulfilled = false;
         }
+    }
+
+    public String readableFileSize() {
+        int s = Integer.valueOf(size);
+        if(s <= 0) return "0";
+        final String[] units = new String[] { "B", "kB", "MB", "GB", "TB" };
+        int digitGroups = (int) (Math.log10(s)/Math.log10(1024));
+        return new DecimalFormat("#,##0.#").format(s/Math.pow(1024, digitGroups)) + " " + units[digitGroups];
     }
 
     public String getName() {
@@ -105,4 +116,5 @@ public class Document {
     public void setIssuer(University issuer) {
         this.issuer = issuer;
     }
+
 }

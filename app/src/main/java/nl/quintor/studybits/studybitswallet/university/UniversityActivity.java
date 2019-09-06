@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
@@ -14,20 +15,14 @@ import java.util.ArrayList;
 
 import nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes;
 import nl.quintor.studybits.studybitswallet.IndyClient;
+import nl.quintor.studybits.studybitswallet.IndyConnection;
 import nl.quintor.studybits.studybitswallet.R;
-import nl.quintor.studybits.studybitswallet.WalletActivity;
 import nl.quintor.studybits.studybitswallet.messages.StudyBitsMessageTypes;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
 
-public class UniversityActivity extends WalletActivity {
-    ArrayList<String> universities = new ArrayList<>();
-    public static final String EXTRA_CONNECTION_REQUEST = "nl.quintor.studybits.indy.wrapper.dto.ConnectionRequest";
-
-    private RecyclerView universityRecyclerView;
+public class UniversityActivity extends AppCompatActivity {
     private UniversityRecyclerViewAdapter universityAdapter;
-    private RecyclerView.LayoutManager universityLayoutManager;
-    private UniversityListViewModel universityListViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,13 +30,15 @@ public class UniversityActivity extends WalletActivity {
         StudyBitsMessageTypes.init();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_university);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         final UniversityActivity activity = this;
 
         Intent intent = getIntent();
 
+
+        // login modal
         if (intent != null && intent.getData() != null) {
             Uri data = intent.getData();
 
@@ -60,8 +57,7 @@ public class UniversityActivity extends WalletActivity {
                 String password = dialogFragment.getPasswordText();
                 Log.d("STUDYBITS", "Logging in with endpoint " + endpoint + " and username " + username);
 
-                IndyClient indyClient = new IndyClient(studentWallet, AppDatabase.getInstance(getApplicationContext()));
-
+                IndyClient indyClient = new IndyClient(IndyConnection.getInstance(), AppDatabase.getInstance(getApplicationContext()));
 
                 try {
                     University university = indyClient.connect(endpoint, name, username, password, did);
@@ -75,25 +71,26 @@ public class UniversityActivity extends WalletActivity {
             dialogFragment.show(getSupportFragmentManager(), "connect");
         }
 
+
+
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        universityRecyclerView = findViewById(R.id.university_recycler_view);
 
-        universityLayoutManager = new LinearLayoutManager(this);
+        // display connected universities?
+        RecyclerView universityRecyclerView = findViewById(R.id.university_recycler_view);
+
+        RecyclerView.LayoutManager universityLayoutManager = new LinearLayoutManager(this);
         universityRecyclerView.setLayoutManager(universityLayoutManager);
 
         universityAdapter = new UniversityRecyclerViewAdapter(this, new ArrayList<>());
 
         universityRecyclerView.setAdapter(universityAdapter);
 
-        universityListViewModel = ViewModelProviders.of(this).get(UniversityListViewModel.class);
+        UniversityListViewModel universityListViewModel = ViewModelProviders.of(this).get(UniversityListViewModel.class);
 
-        universityListViewModel.getUniversityList().observe(UniversityActivity.this, universities -> {
-            universityAdapter.setData(universities);
-        });
+        universityListViewModel.getUniversityList().observe(UniversityActivity.this, universities -> universityAdapter.setData(universities));
 
 
     }
-
 
 }

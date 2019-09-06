@@ -33,6 +33,7 @@ import nl.quintor.studybits.indy.wrapper.dto.CredentialInfo;
 import nl.quintor.studybits.indy.wrapper.dto.CredentialOffer;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
 import nl.quintor.studybits.studybitswallet.IndyClient;
+import nl.quintor.studybits.studybitswallet.IndyConnection;
 import nl.quintor.studybits.studybitswallet.R;
 import nl.quintor.studybits.studybitswallet.TestConfiguration;
 import nl.quintor.studybits.studybitswallet.room.AppDatabase;
@@ -52,41 +53,6 @@ public class CredentialFragment extends Fragment {
     private int mColumnCount = 1;
     private OnListFragmentInteractionListener mListener;
 
-    protected IndyPool indyPool;
-    protected IndyWallet studentWallet;
-    protected MessageEnvelopeCodec studentCodec;
-
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        initWallet();
-    }
-
-    private void initWallet() {
-        try {
-            if (indyPool == null || studentWallet == null) {
-                indyPool = new IndyPool("testPool");
-                studentWallet = IndyWallet.open(indyPool, "student_wallet", TestConfiguration.STUDENT_SEED, TestConfiguration.STUDENT_DID);
-                studentCodec = new MessageEnvelopeCodec(studentWallet);
-            }
-        } catch (IndyException | ExecutionException | InterruptedException | JsonProcessingException e) {
-            Log.e("STUDYBITS", "Exception on resume " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        try {
-            studentWallet.close();
-            indyPool.close();
-        } catch (Exception e) {
-            Log.e("STUDYBITS", "Exception on pause" + e.getMessage());
-            e.printStackTrace();
-        }
-    }
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
      * fragment (e.g. upon screen orientation changes).
@@ -128,15 +94,8 @@ public class CredentialFragment extends Fragment {
             }
 
 
-
-            final CredentialFragment credentialFragment = this;
-
             final CredentialOfferViewModel credentialOfferViewModel = ViewModelProviders.of(this)
                     .get(CredentialOfferViewModel.class);
-
-            initWallet();
-
-            AtomicBoolean hasExecuted = new AtomicBoolean(false);
 
 
             LiveData<List<University>> universities = AppDatabase.getInstance(context).universityDao().get();
@@ -145,7 +104,7 @@ public class CredentialFragment extends Fragment {
 
             LiveData<List<CredentialOrOffer>> credentialOffers = credentialOfferViewModel.getCredentialOffers();
 
-            credentialOfferViewModel.initCredentials(studentWallet);
+            credentialOfferViewModel.initCredentials();
 
             Runnable renewAdapter = () -> {
                 List<University> endpoints = universities.getValue();
@@ -168,7 +127,7 @@ public class CredentialFragment extends Fragment {
             };
 
             universities.observe(this, endpoints -> {
-                credentialOfferViewModel.initCredentialOffers(endpoints, studentCodec);
+                credentialOfferViewModel.initCredentialOffers(endpoints);
                 renewAdapter.run();
             });
 
@@ -199,19 +158,18 @@ public class CredentialFragment extends Fragment {
     private CredentialRecyclerViewAdapter createAdapter(View view, List<University> endpoints, CredentialOfferViewModel credentialOfferViewModel, List<CredentialOrOffer> credentialOrOffers) {
         return new CredentialRecyclerViewAdapter(credentialOrOffers, credentialOrOffer -> {
             if (credentialOrOffer.getCredentialOffer() != null) {
-                initWallet();
-                IndyClient indyClient = new IndyClient(studentWallet, AppDatabase.getInstance(getContext()));
+                IndyClient indyClient = new IndyClient(IndyConnection.getInstance(), AppDatabase.getInstance(getContext()));
                 CompletableFuture<Void> future = new CompletableFuture<>();
                 indyClient.acceptCredentialOffer(this, credentialOrOffer, future);
                 future.thenAccept(_void -> {
-                    credentialOfferViewModel.initCredentials(studentWallet);
+                    credentialOfferViewModel.initCredentials();
                     Snackbar.make(view, "Obtained credential!", Snackbar.LENGTH_SHORT).show();
                 });
 
             }
             mListener.onListFragmentInteraction(credentialOrOffer);
 
-            credentialOfferViewModel.initCredentialOffers(endpoints, studentCodec);
+            credentialOfferViewModel.initCredentialOffers(endpoints);
         });
     }
 
@@ -245,9 +203,5 @@ public class CredentialFragment extends Fragment {
      */
     public interface OnListFragmentInteractionListener {
         void onListFragmentInteraction(CredentialOrOffer credentialOffer);
-    }
-
-    public IndyWallet getStudentWallet() {
-        return studentWallet;
     }
 }

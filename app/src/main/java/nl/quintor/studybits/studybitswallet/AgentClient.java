@@ -28,8 +28,6 @@ import nl.quintor.studybits.indy.wrapper.message.IndyMessageTypes;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelope;
 import nl.quintor.studybits.indy.wrapper.message.MessageEnvelopeCodec;
 import nl.quintor.studybits.indy.wrapper.message.MessageType;
-import nl.quintor.studybits.studybitswallet.document.Document;
-import nl.quintor.studybits.studybitswallet.messages.AuthcryptableDocuments;
 import nl.quintor.studybits.studybitswallet.messages.AuthcryptableExchangePositions;
 import nl.quintor.studybits.studybitswallet.exchangeposition.ExchangePosition;
 import nl.quintor.studybits.studybitswallet.room.entity.University;
@@ -43,12 +41,13 @@ public class AgentClient {
     public static Map<String, CookieManager> cookieManagers= new HashMap<>();
 
     private University university;
-    private MessageEnvelopeCodec codec;
+    private IndyConnection connection;
 
-    public AgentClient(University university, MessageEnvelopeCodec codec) {
+    public AgentClient(University university, IndyConnection connection) {
         this.university = university;
-        this.codec = codec;
+        this.connection = connection;
     }
+
     public static MessageEnvelope<ConnectionResponse> login(String endpoint, String username, String password, MessageEnvelope<ConnectionRequest> envelope) throws Exception {
         try {
             Log.d("STUDYBITS", "Logging in");
@@ -72,8 +71,6 @@ public class AgentClient {
             urlConnection.setUseCaches(false);
             urlConnection.setDoOutput(true);
             urlConnection.setDoInput(true);
-
-
 
             OutputStream out = urlConnection.getOutputStream();
             String msg = envelope.toJSON();
@@ -101,21 +98,21 @@ public class AgentClient {
 
         MessageEnvelope<CredentialOfferList> credentialOfferListEnvelope = this.postAndReturnMessage(getRequestEnvelope(CREDENTIAL_OFFERS), CREDENTIAL_OFFERS);
 
-        CredentialOfferList offersList = codec.decryptMessage(credentialOfferListEnvelope).get();
+        CredentialOfferList offersList = connection.getCodec().decryptMessage(credentialOfferListEnvelope).get();
 
         return offersList.getCredentialOffers();
     }
 
     public List<CredentialOffer> getDocumentOffers() throws IndyException, ExecutionException, InterruptedException, IOException {
         MessageEnvelope<CredentialOfferList> credentialOfferListEnvelope = this.postAndReturnMessage(getRequestEnvelope(DOCUMENT_OFFERS), DOCUMENT_OFFERS);
-        return codec.decryptMessage(credentialOfferListEnvelope).get().getCredentialOffers();
+        return connection.getCodec().decryptMessage(credentialOfferListEnvelope).get().getCredentialOffers();
     }
 
     public List<ExchangePosition> getExchangePositions() throws IOException, IndyException, ExecutionException, InterruptedException {
 
         MessageEnvelope<AuthcryptableExchangePositions> exchangePositionsMessageEnvelope = this.postAndReturnMessage(getRequestEnvelope(EXCHANGE_POSITIONS), EXCHANGE_POSITIONS);
 
-        AuthcryptableExchangePositions exchangePositionsList = codec.decryptMessage(exchangePositionsMessageEnvelope).get();
+        AuthcryptableExchangePositions exchangePositionsList = connection.getCodec().decryptMessage(exchangePositionsMessageEnvelope).get();
 
         List<ExchangePosition> exchangePositions = exchangePositionsList.getExchangePositions();
 
@@ -161,7 +158,7 @@ public class AgentClient {
     }
 
     public MessageEnvelope<String> getRequestEnvelope(MessageType expectedReturn) throws JsonProcessingException, IndyException, ExecutionException, InterruptedException {
-        return codec.encryptMessage(expectedReturn.getURN(), GET_REQUEST, university.getTheirDid()).get();
+        return connection.getCodec().encryptMessage(expectedReturn.getURN(), GET_REQUEST, university.getTheirDid()).get();
     }
 
     public HttpURLConnection getConnection(String path) throws IOException {

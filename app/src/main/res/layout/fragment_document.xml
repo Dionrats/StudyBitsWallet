@@ -34,6 +34,6 @@
         android:layout_width="@dimen/standard_touch_target_size"
         android:layout_height="match_parent"
         android:layout_alignParentEnd="true"
-        android:src="@drawable/ic_download"
+        android:src="@drawable/ic_menu"
         android:contentDescription="@string/download_file" />
 </RelativeLayout>
