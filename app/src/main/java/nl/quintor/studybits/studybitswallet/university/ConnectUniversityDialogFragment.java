@@ -57,7 +57,7 @@ public class ConnectUniversityDialogFragment extends DialogFragment {
 
         name = arguments.getString("name");
 
-        View view = inflater.inflate(R.layout.dialog_connect_university, null);
+        View view = inflater.inflate(R.layout.dialog_connect_university, (ViewGroup) getView(), false);
         builder.setView(view)
                 // Add action buttons
                 .setPositiveButton(R.string.connect, (dialog, id) -> {

@@ -16,6 +16,7 @@
             android:layout_height="wrap_content"
             android:src="@drawable/university_icon"
             android:background="@color/colorButtonBackground"
+            android:contentDescription="@string/universities"
             />
 
         <ImageButton
@@ -24,6 +25,7 @@
             android:layout_height="wrap_content"
             android:src="@drawable/credential_icon"
             android:background="@color/colorButtonBackground"
+            android:contentDescription="@string/credentials"
             />
 
         <ImageButton
@@ -32,6 +34,7 @@
             android:layout_height="wrap_content"
             android:src="@drawable/exchange_position_icon"
             android:background="@color/colorButtonBackground"
+            android:contentDescription="@string/exchange_positions"
             />
 
         <ImageButton
@@ -40,6 +43,7 @@
             android:layout_height="wrap_content"
             android:src="@drawable/document_icon"
             android:background="@color/colorButtonBackground"
+            android:contentDescription="@string/documents"
             />
 
     </LinearLayout>

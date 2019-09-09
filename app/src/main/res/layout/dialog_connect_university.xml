@@ -9,12 +9,14 @@
 
     <EditText
         android:id="@+id/student_id_text"
+        android:inputType="number"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/student_id"/>
 
     <EditText
         android:id="@+id/password_text"
+        android:inputType="textPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/password"/>
