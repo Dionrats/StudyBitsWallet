@@ -2,38 +2,48 @@ package nl.quintor.studybits.studybitswallet;
 
 import android.Manifest;
 import android.content.Intent;
-import android.net.Uri;
+import android.os.Environment;
+import android.support.test.espresso.Espresso;
 import android.support.test.espresso.IdlingPolicies;
-import android.support.test.espresso.action.ViewActions;
-import android.support.test.espresso.matcher.RootMatchers;
 import android.support.test.filters.LargeTest;
 import android.support.test.rule.ActivityTestRule;
 import android.support.test.rule.GrantPermissionRule;
-import android.support.test.runner.AndroidJUnit4;
 import android.util.Log;
-import android.view.WindowManager;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import nl.quintor.studybits.studybitswallet.document.DocumentActivity;
 import nl.quintor.studybits.studybitswallet.university.UniversityActivity;
 
 import static android.support.test.espresso.Espresso.onView;
-import static android.support.test.espresso.Espresso.pressBack;
 import static android.support.test.espresso.action.ViewActions.click;
+import static android.support.test.espresso.action.ViewActions.swipeDown;
 import static android.support.test.espresso.action.ViewActions.typeText;
 import static android.support.test.espresso.assertion.ViewAssertions.matches;
 import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
-import static android.support.test.espresso.matcher.ViewMatchers.isRoot;
 import static android.support.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static android.support.test.espresso.matcher.ViewMatchers.withId;
-import static android.support.test.espresso.matcher.ViewMatchers.withParent;
 import static android.support.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.core.AllOf.allOf;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -51,7 +61,10 @@ public class ScenarioTest {
     public ActivityTestRule<UniversityActivity> universityActivityRule = new ActivityTestRule<>(UniversityActivity.class, true, false);
 
     @Rule
-    public GrantPermissionRule grantPermissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE);
+    public ActivityTestRule<DocumentActivity> documentActivityRule = new ActivityTestRule<>(DocumentActivity.class, true, false);
+
+    @Rule
+    public GrantPermissionRule grantPermissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.INTERNET);
 
     @Before
     public void setTimeouts() {
@@ -81,7 +94,7 @@ public class ScenarioTest {
         Intent intent = new Intent();
 
         intent.setAction(Intent.ACTION_VIEW);
-        intent.setData(TestConfiguration.CONNECTION_URI_RUG);
+        intent.setData(new TestConfiguration().getRuGConnectionURI());
 
         universityActivityRule.launchActivity(intent);
 
@@ -105,54 +118,100 @@ public class ScenarioTest {
 
         // Navigate to credentials via pressing back on toolbar
         onView(withContentDescription(R.string.abc_action_bar_up_description)).perform(click());
-//        onView(withId(R.id.button_credential))
-//                .perform(click());
-//
-//        // Check presence of credential
-//        onView(withText("Rijksuniversiteit Groningen"))
-//                .check(matches(isDisplayed()));
-//
-//        // Accept credential
-//        onView(withText("Rijksuniversiteit Groningen"))
-//                .perform(click());
-//
-//        // Launch connection dialog
-//        intent = new Intent();
-//
-//        intent.setAction(Intent.ACTION_VIEW);
-//        intent.setData(TestConfiguration.CONNECTION_URI_GENT);
-//
-//        universityActivityRule.launchActivity(intent);
-//
-//        // Enter text
-//        onView(withId(R.id.student_id_text))
-//                .check(matches(isDisplayed()));
-//
-//        // Click connect
-//        onView(withText(R.string.connect))
-//                .perform(click());
-//
-//        // Check connection to university
-//        onView(withText("Universiteit Gent"))
-//                .check(matches(isDisplayed()));
-//
-//
-//        // Navigate to exchange positions via pressing back on toolbar
-//        onView(withContentDescription(R.string.abc_action_bar_up_description)).perform(click());
-//        onView(withId(R.id.button_exchange_position))
-//                .perform(click());
-//
-//        // Accept exchange position
-//        onView(withText("MSc Marketing"))
-//                .check(matches(isDisplayed()))
-//                .perform(click());
-//
-//        onView(withText("Send"))
-//                .check(matches(isDisplayed()))
-//                .perform(click());
-//
-//        // Check result
-//        onView(allOf(withId(android.support.design.R.id.snackbar_text), withText("You're going abroad!")))
-//                .check(matches(isDisplayed()));
+
+        // Simulate file publish
+        File file = null;
+        try {
+            file = File.createTempFile("temp", "tmp");
+            FileWriter fileWriter = new FileWriter(file);
+            fileWriter.write("Hello World");
+            fileWriter.close();
+
+            HttpClient httpclient = new DefaultHttpClient();
+            // build multipart upload request
+            HttpEntity data = MultipartEntityBuilder.create()
+                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+                    .addBinaryBody("file", file, ContentType.MULTIPART_FORM_DATA, file.getName())
+                    .addTextBody("name", file.getName(), ContentType.MULTIPART_FORM_DATA)
+                    .addTextBody("type", "tst", ContentType.MULTIPART_FORM_DATA)
+                    .addTextBody("student", "12345678", ContentType.MULTIPART_FORM_DATA)
+                    .build();
+
+            // build http request and assign multipart upload data
+            HttpUriRequest request = RequestBuilder
+                    .post(new TestConfiguration().getRuGEndpoint() + "/documents/upload")
+                    .setEntity(data)
+                    .build();
+
+            httpclient.execute(request);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //navigate to document activity
+        onView(withId(R.id.button_document))
+                .perform(click());
+
+        // Check presence of CredentialOffer
+        onView(withText("Rijksuniversiteit Groningen"))
+                .check(matches(isDisplayed()));
+
+        // Accept CredentialOffer
+        onView(withText("Rijksuniversiteit Groningen"))
+                .perform(click());
+
+        // Open document menu
+        onView(withId(R.id.file_download))
+                .perform(click());
+
+        // Download document
+        onView(withText(R.string.savefile))
+                .perform(click());
+
+
+
+        // Check Document
+        File doc = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), file.getName() + ".tst");
+        assertTrue(doc.exists() && doc.isFile());
+
+        // Open document menu
+        onView(withId(R.id.file_download))
+                .perform(click());
+
+        // Download Verification-document
+        onView(withText(R.string.getvalidation))
+                .perform(click());
+
+        // check Verification-document
+        File sbv = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), file.getName() + ".tst.sbv");
+        assertTrue(sbv.exists() && sbv.isFile());
+
+        // Verfify document integrity
+        try {
+            HttpClient httpclient = new DefaultHttpClient();
+            // build multipart upload request
+            HttpEntity data = MultipartEntityBuilder.create()
+                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+                    .addBinaryBody("file", doc, ContentType.MULTIPART_FORM_DATA, doc.getName() + ".tst")
+                    .addBinaryBody("validation", sbv, ContentType.MULTIPART_FORM_DATA, sbv.getName() + ".tst.sbv")
+                    .build();
+
+            // build http request and assign multipart upload data
+            HttpUriRequest request = RequestBuilder
+                    .post(new TestConfiguration().getGentEndpoint() + "/documents/verify")
+                    .setEntity(data)
+                    .build();
+
+            String result = EntityUtils.toString(httpclient.execute(request).getEntity());
+            assertTrue(new JSONObject(result).getBoolean("response"));
+
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+        }
+
+        // Delete Document & Verification-document
+        doc.delete();
+        sbv.delete();
     }
 }

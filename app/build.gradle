@@ -58,12 +58,17 @@ dependencies {
 
     implementation "android.arch.lifecycle:extensions:1.1.1"
     implementation "android.arch.lifecycle:viewmodel:1.1.1"
+    implementation 'com.github.ipfs:java-ipfs-api:v1.2.2'
+
 
     def room_version = "1.1.1"
 
     implementation "android.arch.persistence.room:runtime:$room_version"
     implementation 'com.android.support:support-v4:28.0.0'
     annotationProcessor "android.arch.persistence.room:compiler:$room_version"
+    implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.9'
+    implementation group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.9'
+
 
     implementation 'commons-io:commons-io:2.5'
 
